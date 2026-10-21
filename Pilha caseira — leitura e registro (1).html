@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pilha caseira — leitura e registro</title>
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%20%22Pilha%20Caseira%22%2C%20%22short_name%22%3A%20%22Pilha%22%2C%20%22start_url%22%3A%20%22.%22%2C%20%22display%22%3A%20%22standalone%22%2C%20%22background_color%22%3A%20%22%230E1812%22%2C%20%22theme_color%22%3A%20%22%230E1812%22%2C%20%22icons%22%3A%20%5B%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%2520xmlns%253D%2527http%253A//www.w3.org/2000/svg%2527%2520viewBox%253D%25270%25200%2520100%2520100%2527%253E%253Crect%2520width%253D%2527100%2527%2520height%253D%2527100%2527%2520rx%253D%252718%2527%2520fill%253D%2527%2525233E7D34%2527/%253E%253Ctext%2520x%253D%252750%2525%2527%2520y%253D%252762%2525%2527%2520font-size%253D%252755%2527%2520text-anchor%253D%2527middle%2527%253E%2526%2523128267%253B%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22512x512%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%7D%5D%7D">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --papel:#F3F7EF;
+  --grade:#DBE7D3;
+  --grade-forte:#C2D6B7;
+  --tinta:#17261A;
+  --tinta-fraca:#5B7256;
+  --cobre:#3E7D34;
+  --zinco:#82A46E;
+  --alerta:#9C4A2E;
+  --borda:#C8D8BE;
+  --cartao:#FBFDF8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --papel:#0E1812;
+    --grade:#1C2C1E;
+    --grade-forte:#2A4526;
+    --tinta:#E6F0E1;
+    --tinta-fraca:#93B187;
+    --cobre:#6FCB5F;
+    --zinco:#9FC28C;
+    --alerta:#E08A64;
+    --borda:#2A4028;
+    --cartao:#132014;
+  }
+}
+:root[data-theme="dark"]{
+  --papel:#0E1812; --grade:#1C2C1E; --grade-forte:#2A4526;
+  --tinta:#E6F0E1; --tinta-fraca:#93B187; --cobre:#6FCB5F;
+  --zinco:#9FC28C; --alerta:#E08A64; --borda:#2A4028; --cartao:#132014;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background-color:var(--papel);
+  background-image:
+    linear-gradient(var(--grade) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grade) 1px, transparent 1px);
+  background-size:24px 24px;
+  color:var(--tinta);
+  font-family:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:16px;
+  line-height:1.5;
+  -webkit-text-size-adjust:100%;
+}
+.folha{max-width:640px;margin:0 auto;padding:20px 16px 56px}
+
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:28px}
+h1{font-size:1.05rem;font-weight:600;letter-spacing:-0.01em;margin:0}
+h1 span{display:block;font-weight:400;font-size:.85rem;color:var(--tinta-fraca)}
+.estado{
+  font-family:"IBM Plex Mono",monospace;font-size:.74rem;
+  padding:4px 9px;border:1px solid var(--borda);background:var(--cartao);
+  border-radius:2px;color:var(--tinta-fraca);white-space:nowrap;
+}
+.estado[data-on="sim"]{color:var(--cobre);border-color:var(--cobre)}
+.estado[data-on="demo"]{color:var(--zinco);border-color:var(--zinco)}
+
+.leitura{margin:0 0 4px}
+.volts{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:clamp(3.6rem,19vw,5.6rem);
+  font-weight:500;line-height:.92;letter-spacing:-0.045em;
+  font-variant-numeric:tabular-nums;color:var(--cobre);
+  margin:0;
+}
+.volts small{font-size:.28em;letter-spacing:0;color:var(--tinta-fraca);margin-left:.18em;font-weight:400}
+.carimbo{font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--tinta-fraca);margin:6px 0 22px}
+
+.botoes{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px}
+button{
+  font-family:inherit;font-size:.92rem;font-weight:500;
+  padding:11px 17px;border-radius:3px;cursor:pointer;
+  border:1px solid var(--tinta);background:var(--tinta);color:var(--papel);
+  transition:opacity .12s;
+}
+button.secundario{background:transparent;color:var(--tinta);border-color:var(--borda)}
+button:disabled{opacity:.4;cursor:default}
+button:not(:disabled):active{opacity:.75}
+button:focus-visible{outline:2px solid var(--cobre);outline-offset:2px}
+
+.grafico{
+  border:1px solid var(--borda);background:var(--cartao);
+  border-radius:3px;padding:10px 8px 6px;margin-bottom:10px;
+}
+canvas{display:block;width:100%;height:210px}
+.legenda{display:flex;gap:18px;font-size:.78rem;color:var(--tinta-fraca);padding:2px 4px 0}
+.legenda i{display:inline-block;width:14px;height:3px;margin-right:6px;vertical-align:middle;border-radius:2px}
+
+.derivados{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--borda);border:1px solid var(--borda);border-radius:3px;
+  margin:18px 0 30px;overflow:hidden;
+}
+.derivados div{background:var(--cartao);padding:12px 10px}
+.derivados dt{font-size:.76rem;color:var(--tinta-fraca);margin:0 0 3px}
+.derivados dd{
+  margin:0;font-family:"IBM Plex Mono",monospace;font-size:1.02rem;
+  font-variant-numeric:tabular-nums;font-weight:500;
+}
+
+h2{font-size:.92rem;font-weight:600;margin:0 0 10px;display:flex;justify-content:space-between;align-items:baseline}
+h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-weight:400;font-size:.8rem;color:var(--tinta-fraca)}
+.rolagem{overflow-x:auto;border:1px solid var(--borda);border-radius:3px;background:var(--cartao)}
+table{border-collapse:collapse;width:100%;font-family:"IBM Plex Mono",monospace;font-size:.8rem}
+th,td{padding:7px 11px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th{font-weight:500;color:var(--tinta-fraca);border-bottom:1px solid var(--borda);text-align:right}
+th:first-child,td:first-child{text-align:left}
+tbody tr:nth-child(even) td{background:color-mix(in srgb, var(--grade) 35%, transparent)}
+td.sim{color:var(--zinco)}
+.vazio{padding:22px 14px;color:var(--tinta-fraca);font-size:.88rem;font-family:"IBM Plex Sans",sans-serif}
+
+.aviso{
+  border-left:3px solid var(--alerta);padding:10px 14px;margin:0 0 24px;
+  background:var(--cartao);font-size:.88rem;color:var(--tinta);
+}
+.aviso b{color:var(--alerta)}
+.nota{font-size:.82rem;color:var(--tinta-fraca);margin-top:12px}
+.escondido{display:none !important}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="folha">
+
+<header>
+  <h1>Pilha caseira<span>leitura, registro e demonstração</span></h1>
+  <span class="estado" id="estado" data-on="nao">desconectado</span>
+</header>
+
+<div class="aviso escondido" id="semBluetooth">
+  <b>Este navegador não abre o Bluetooth.</b>
+  Toque no ícone de abrir em nova aba e use o Chrome do Android com a
+  localização do aparelho ligada. Enquanto isso, o modo demonstração funciona normalmente.
+</div>
+
+<div class="leitura">
+  <p class="volts" id="volts">—<small>V</small></p>
+  <p class="carimbo" id="carimbo">nenhuma medida ainda</p>
+</div>
+
+<div class="botoes">
+  <button id="btConectar">Conectar ao HM-10</button>
+  <button id="btDemo" class="secundario">Modo demonstração</button>
+</div>
+
+<div class="grafico">
+  <canvas id="tela"></canvas>
+  <div class="legenda">
+    <span><i style="background:var(--cobre)"></i>circuito aberto</span>
+    <span><i style="background:var(--zinco)"></i>com carga de 10 kΩ</span>
+  </div>
+</div>
+
+<dl class="derivados">
+  <div><dt>Com carga</dt><dd id="dCarga">—</dd></div>
+  <div><dt>Corrente</dt><dd id="dCorrente">—</dd></div>
+  <div><dt>Resistência interna</dt><dd id="dResistencia">—</dd></div>
+</dl>
+
+<h2>Registro <em id="contador">0 medidas</em></h2>
+<div class="rolagem">
+  <table>
+    <thead>
+      <tr><th>Hora</th><th>Aberto (V)</th><th>Carga (V)</th><th>I (µA)</th><th>r (kΩ)</th></tr>
+    </thead>
+    <tbody id="corpo"></tbody>
+  </table>
+  <p class="vazio" id="vazio">As medidas aparecem aqui assim que o ESP32 conectar. Elas ficam salvas neste navegador.</p>
+</div>
+
+<div class="botoes" style="margin-top:14px">
+  <button id="btCsv" class="secundario">Baixar CSV</button>
+  <button id="btLimpar" class="secundario">Apagar registro</button>
+</div>
+
+<p class="nota" id="nota">A corrente é calculada por I = V<sub>carga</sub> ÷ 10 kΩ e a resistência interna por r = 10 kΩ × (V<sub>aberto</sub> ÷ V<sub>carga</sub> − 1).</p>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var SERVICO = "0000ffe0-0000-1000-8000-00805f9b34fb"; // serviço de fábrica do HM-10
+var CANAL   = "0000ffe1-0000-1000-8000-00805f9b34fb"; // característica de fábrica do HM-10
+var R_CARGA = 10000;
+var CHAVE   = "pilha-caseira-registro";
+var LIMITE  = 400;
+
+var registro = [];
+var dispositivo = null, canal = null, timerDemo = null, demoT = 0;
+var baixador = null;
+
+var el = function(id){ return document.getElementById(id); };
+var estado = el("estado"), tela = el("tela"), ctx = tela.getContext("2d");
+
+/* ---------- armazenamento local ---------- */
+function carregar(){
+  try{
+    var bruto = localStorage.getItem(CHAVE);
+    if(bruto){ registro = JSON.parse(bruto) || []; }
+  }catch(e){ registro = []; }
+}
+function salvar(){
+  try{ localStorage.setItem(CHAVE, JSON.stringify(registro.slice(-LIMITE))); }catch(e){}
+}
+
+/* ---------- entrada de uma medida ---------- */
+function registrarMedida(abertoMv, cargaMv, simulado){
+  var aberto = abertoMv/1000, comCarga = cargaMv/1000;
+  var corrente = comCarga > 0 ? comCarga / R_CARGA * 1e6 : 0;          // µA
+  var r = comCarga > 0.001 ? R_CARGA * (aberto/comCarga - 1) / 1000 : null; // kΩ
+
+  registro.push({t:Date.now(), a:aberto, c:comCarga, i:corrente, r:r, s:!!simulado});
+  if(registro.length > LIMITE) registro = registro.slice(-LIMITE);
+  salvar();
+
+  el("volts").innerHTML = aberto.toFixed(3).replace(".", ",") + "<small>V</small>";
+  el("carimbo").textContent = (simulado ? "simulado · " : "medido · ") + hora(Date.now());
+  el("dCarga").textContent = comCarga.toFixed(3).replace(".", ",") + " V";
+  el("dCorrente").textContent = corrente.toFixed(1).replace(".", ",") + " µA";
+  el("dResistencia").textContent = (r === null || r < 0) ? "—" : r.toFixed(1).replace(".", ",") + " kΩ";
+
+  desenharTabela();
+  desenharGrafico();
+}
+
+function hora(ms){
+  var d = new Date(ms), p = function(n){ return n<10 ? "0"+n : ""+n; };
+  return p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
+}
+function num(v, casas){ return v === null || v === undefined ? "—" : v.toFixed(casas).replace(".", ","); }
+
+/* ---------- tabela ---------- */
+function desenharTabela(){
+  var corpo = el("corpo");
+  corpo.textContent = "";
+  var ultimos = registro.slice(-30).reverse();
+  for(var k=0;k<ultimos.length;k++){
+    var m = ultimos[k], tr = document.createElement("tr");
+    var cols = [hora(m.t), num(m.a,3), num(m.c,3), num(m.i,1), (m.r===null||m.r<0)?"—":num(m.r,1)];
+    for(var j=0;j<cols.length;j++){
+      var td = document.createElement("td");
+      td.textContent = cols[j];
+      if(m.s) td.className = "sim";
+      tr.appendChild(td);
+    }
+    corpo.appendChild(tr);
+  }
+  el("contador").textContent = registro.length + (registro.length === 1 ? " medida" : " medidas");
+  el("vazio").classList.toggle("escondido", registro.length > 0);
+}
+
+/* ---------- gráfico desenhado à mão ---------- */
+function desenharGrafico(){
+  var dpr = window.devicePixelRatio || 1;
+  var larg = tela.clientWidth, alt = tela.clientHeight;
+  tela.width = Math.round(larg*dpr); tela.height = Math.round(alt*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,larg,alt);
+
+  var css = getComputedStyle(document.documentElement);
+  var cGrade = css.getPropertyValue("--grade-forte").trim();
+  var cTinta = css.getPropertyValue("--tinta-fraca").trim();
+  var cCobre = css.getPropertyValue("--cobre").trim();
+  var cZinco = css.getPropertyValue("--zinco").trim();
+
+  var esq = 40, dir = 8, topo = 10, base = 22;
+  var w = larg-esq-dir, h = alt-topo-base;
+
+  var dados = registro.slice(-60);
+  var max = 1.2;
+  for(var k=0;k<dados.length;k++){ if(dados[k].a > max) max = dados[k].a; }
+  max = Math.ceil(max*10)/10;
+
+  ctx.font = '11px "IBM Plex Mono", monospace';
+  ctx.fillStyle = cTinta; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  ctx.strokeStyle = cGrade; ctx.lineWidth = 1;
+  for(var i=0;i<=4;i++){
+    var y = topo + h - (h*i/4);
+    ctx.beginPath(); ctx.moveTo(esq, Math.round(y)+0.5); ctx.lineTo(esq+w, Math.round(y)+0.5); ctx.stroke();
+    ctx.fillText((max*i/4).toFixed(1).replace(".", ","), esq-8, y);
+  }
+
+  if(dados.length === 0){
+    ctx.textAlign = "center"; ctx.fillStyle = cTinta;
+    ctx.font = '12px "IBM Plex Sans", sans-serif';
+    ctx.fillText("sem dados", esq+w/2, topo+h/2);
+    return;
+  }
+
+  var px = function(idx){ return esq + (dados.length===1 ? w/2 : w*idx/(dados.length-1)); };
+  var py = function(v){ return topo + h - Math.max(0, Math.min(1, v/max))*h; };
+
+  var traco = function(campo, cor){
+    ctx.strokeStyle = cor; ctx.lineWidth = 2;
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.beginPath();
+    for(var k=0;k<dados.length;k++){
+      var v = dados[k][campo];
+      if(k===0) ctx.moveTo(px(k), py(v)); else ctx.lineTo(px(k), py(v));
+    }
+    ctx.stroke();
+  };
+  traco("c", cZinco);
+  traco("a", cCobre);
+
+  ctx.fillStyle = cCobre;
+  ctx.beginPath(); ctx.arc(px(dados.length-1), py(dados[dados.length-1].a), 3.5, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = cTinta; ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.font = '11px "IBM Plex Mono", monospace';
+  ctx.fillText(hora(dados[0].t), esq, topo+h+6);
+  ctx.textAlign = "right";
+  ctx.fillText(hora(dados[dados.length-1].t), esq+w, topo+h+6);
+}
+
+/* ---------- Bluetooth ---------- */
+function definirEstado(texto, modo){ estado.textContent = texto; estado.dataset.on = modo; }
+
+async function conectar(){
+  if(!navigator.bluetooth){ el("semBluetooth").classList.remove("escondido"); return; }
+  pararDemo();
+  try{
+    definirEstado("procurando…", "nao");
+    dispositivo = await navigator.bluetooth.requestDevice({ filters:[{ services:[SERVICO] }] });
+    dispositivo.addEventListener("gattserverdisconnected", function(){
+      definirEstado("desconectado", "nao");
+      el("btConectar").disabled = false;
+      el("btConectar").textContent = "Conectar ao HM-10";
+    });
+    definirEstado("conectando…", "nao");
+    var servidor = await dispositivo.gatt.connect();
+    var servico = await servidor.getPrimaryService(SERVICO);
+    canal = await servico.getCharacteristic(CANAL);
+    await canal.startNotifications();
+    var bufferSerial = "";
+    canal.addEventListener("characteristicvaluechanged", function(ev){
+      // O HM-10 transmite serial puro: uma mensagem pode chegar
+      // picada em mais de uma notificação. Por isso acumulamos
+      // o texto e só processamos quando acha uma quebra de linha.
+      bufferSerial += new TextDecoder().decode(ev.target.value);
+      var partesLinha = bufferSerial.split("\n");
+      bufferSerial = partesLinha.pop(); // guarda o pedaço incompleto, se houver
+      for(var k=0;k<partesLinha.length;k++){
+        var campos = partesLinha[k].split(",");
+        var a = parseFloat(campos[0]), c = parseFloat(campos[1]);
+        if(isFinite(a) && isFinite(c)) registrarMedida(a, c < 0 ? 0 : c, false);
+      }
+    });
+    definirEstado("recebendo dados", "sim");
+    el("btConectar").textContent = "Conectado";
+    el("btConectar").disabled = true;
+  }catch(erro){
+    definirEstado("desconectado", "nao");
+    if(erro && erro.name === "NotFoundError"){
+      el("carimbo").textContent = "nenhum dispositivo encontrado — confira se o HM-10 está ligado";
+    } else if(!navigator.bluetooth){
+      el("semBluetooth").classList.remove("escondido");
+    } else {
+      // o navegador TEM Bluetooth, mas algo mais deu errado —
+      // mostra o erro de verdade em vez do aviso genérico
+      var aviso = el("semBluetooth");
+      aviso.querySelector("b").textContent = "Erro ao conectar: " + (erro.name || "desconhecido");
+      aviso.lastChild && (aviso.innerHTML = "<b>Erro ao conectar: " + (erro.name||"desconhecido") + "</b><br>" + (erro.message || "sem detalhes") + ". Confira se o Bluetooth do aparelho está ligado e se o Chrome tem permissão de \"Dispositivos próximos\" (Ajustes → Apps → Chrome → Permissões).");
+      aviso.classList.remove("escondido");
+    }
+  }
+}
+
+/* ---------- demonstração ---------- */
+function pararDemo(){
+  if(timerDemo){ clearInterval(timerDemo); timerDemo = null; }
+  el("btDemo").textContent = "Modo demonstração";
+}
+function alternarDemo(){
+  if(timerDemo){ pararDemo(); definirEstado("desconectado","nao"); return; }
+  definirEstado("demonstração", "demo");
+  el("btDemo").textContent = "Parar demonstração";
+  var passo = function(){
+    demoT += 1;
+    var desgaste = 0.92 + 0.08*Math.exp(-demoT/90);
+    var aberto = (0.94*desgaste + (Math.random()-0.5)*0.012)*1000;
+    var rInterna = 3200 + demoT*12;
+    var carga = aberto * (R_CARGA/(R_CARGA+rInterna)) + (Math.random()-0.5)*8;
+    registrarMedida(aberto, carga, true);
+  };
+  passo();
+  timerDemo = setInterval(passo, 2000);
+}
+
+/* ---------- exportar ---------- */
+function montarCsv(){
+  var linhas = ["data_hora;tensao_aberto_V;tensao_carga_V;corrente_uA;resistencia_interna_kohm;origem"];
+  for(var k=0;k<registro.length;k++){
+    var m = registro[k];
+    linhas.push([
+      new Date(m.t).toISOString(),
+      m.a.toFixed(4).replace(".", ","),
+      m.c.toFixed(4).replace(".", ","),
+      m.i.toFixed(2).replace(".", ","),
+      (m.r===null||m.r<0) ? "" : m.r.toFixed(2).replace(".", ","),
+      m.s ? "simulado" : "medido"
+    ].join(";"));
+  }
+  return linhas.join("\n");
+}
+async function exportar(){
+  if(registro.length === 0){ el("nota").textContent = "Não há medidas para exportar ainda."; return; }
+  var csv = montarCsv();
+  if(baixador){
+    try{
+      await baixador.save({ filename:"pilha-caseira.csv", data:csv });
+      return;
+    }catch(e){ /* cai para a área de transferência */ }
+  }
+  try{
+    await navigator.clipboard.writeText(csv);
+    el("nota").textContent = "CSV copiado. Cole num editor de texto e salve como pilha-caseira.csv.";
+  }catch(e){
+    el("nota").textContent = "Não foi possível exportar por aqui. Abra a página em nova aba e tente de novo.";
+  }
+}
+
+/* ---------- ligações ---------- */
+el("btConectar").addEventListener("click", conectar);
+el("btDemo").addEventListener("click", alternarDemo);
+el("btCsv").addEventListener("click", exportar);
+el("btLimpar").addEventListener("click", function(){
+  registro = []; salvar(); desenharTabela(); desenharGrafico();
+  el("volts").innerHTML = "—<small>V</small>";
+  el("carimbo").textContent = "registro apagado";
+  el("dCarga").textContent = el("dCorrente").textContent = el("dResistencia").textContent = "—";
+});
+window.addEventListener("resize", desenharGrafico);
+
+carregar();
+desenharTabela();
+desenharGrafico();
+if(registro.length){
+  var u = registro[registro.length-1];
+  el("volts").innerHTML = u.a.toFixed(3).replace(".", ",") + "<small>V</small>";
+  el("carimbo").textContent = "última medida · " + hora(u.t);
+}
+if(!navigator.bluetooth) el("semBluetooth").classList.remove("escondido");
+
+if(window.claude && window.claude.use){
+  window.claude.use("downloads").then(function(d){ baixador = d; }).catch(function(){});
+}
+})();
+</script>
+</body>
+</html>
